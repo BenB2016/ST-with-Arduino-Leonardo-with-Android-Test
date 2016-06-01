@@ -1,0 +1,153 @@
+/**
+ *  Copyright 2015 SmartThings
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License. You may obtain a copy of the License at:
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+ *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+ *  for the specific language governing permissions and limitations under the License.
+ *
+ */
+// 052016 SHT31_K30 Groovy Code for Smart Things Arduino Shield
+// with Adafruit SHT31 Temperature and Humidity sensor with K30 CO2 sensor
+ 
+metadata {
+    // Automatically generated. Make future change here.
+    definition (name: "F-One", namespace: "benwolodko", author: "Ben Wolodko") {
+        capability "Refresh"
+        capability "Polling"
+        capability "Temperature Measurement"
+        capability "Relative Humidity Measurement"
+        capability "Carbon Dioxide Measurement"       
+        capability "Sensor"
+        
+        command "notify"        
+
+        fingerprint profileId: "0104", deviceId: "0138", inClusters: "0000"
+}
+
+// Simulator metadata
+simulator {
+    // status messages
+    status "ping": "catchall: 0104 0000 01 01 0040 00 6A67 00 00 0000 0A 00 0A70696E67"
+    status "hello": "catchall: 0104 0000 01 01 0040 00 0A21 00 00 0000 0A 00 0A48656c6c6f20576f726c6421"
+}
+
+// UI tile definitions
+ tiles(scale: 2)
+               
+valueTile("roomTemp_F1", "device.roomTemp_F1", width: 3, height: 3, decoration: "flat"){
+        state ("temperature", label:'${currentValue} °F', unit:"", backgroundColors: [
+                [value: 60, color: "#153591"], // Dark Blue
+                [value: 65, color: "#1e9cbb"], // Cyan Blue
+                [value: 70, color: "#90d2a7"], // Light Green
+                [value: 75, color: "#44b621"], // Dark Green
+                [value: 79, color: "#f1d801"], // Yellow
+                [value: 81, color: "#d04e00"], // Orange
+                [value: 84, color: "#bc2323"]  // Red
+            ])
+    }        
+
+
+    valueTile("humidity_F1", "device.humidity_F1", decoration: "flat", wordWrap: true, width: 3, height: 3, ) {
+        state ("humidity", label:'${currentValue}% rH', unit:"", backgroundColor:"#d04e00")   
+    }
+
+    valueTile("cO2_F1", "device.cO2_F1", decoration: "flat", wordWrap: true, width: 3, height: 3, ) {
+        state ("default", label:'${currentValue} PPM', unit:"", backgroundColors: [
+                 [value: 200, color: "#1e9cbb"], // Cyan Blue
+                 [value: 400, color: "#90d2a7"], // Light Green
+                 [value: 500, color: "#44b621"], // Dark Green
+                 [value: 600, color: "#f1d801"], // Yellow
+                 [value: 800, color: "#d04e00"], // Orange
+                 [value: 1000, color: "#bc2323"]  // Red
+            ]) 
+    }
+
+    standardTile("refresh", "device.refresh", decoration: "flat", wordWrap: true, width: 3, height: 3, ) {
+        state "default", label:'Refresh', action:"device.poll", icon:"st.secondary.refresh"
+    }
+
+    main (["roomTemp_F1", "humidity_F1", "cO2_F1"])
+ //   details(["roomTemp_F1", "humidity_F1", "cO2_F1"])
+  details(["roomTemp_F1", "humidity_F1", "cO2_F1", "refresh"])
+}
+
+
+Map parse(String description) {
+
+    def value = zigbee.parse(description)?.text
+log.debug "Parsing '${description}'"
+// Not super interested in ping, can we just move on?
+if (value == "ping" || value == " ")
+{
+    return
+}
+
+def linkText = getLinkText(device)
+def descriptionText = getDescriptionText(description, linkText, value)
+def handlerName = value
+def isStateChange = value != "ping"
+def displayed = value && isStateChange
+
+def result = [
+    value: value,
+    handlerName: handlerName,
+    linkText: linkText,
+    descriptionText: descriptionText,
+    isStateChange: isStateChange,
+    displayed: displayed
+]
+
+log.debug  result.value
+
+if (value && value[0] == "A") {
+    result.name = "humidity_F1";
+    result.value = value[1..-1];
+    result.unit = "%"
+//    log.debug 'humidity_F1' 
+//    log.debug result.value
+
+
+} else if (value && value[0] == "B") {
+    result.name = "roomTemp_F1";
+    result.value = value[1..-1];
+    result.unit = "°F"
+ //   log.debug 'roomTemp_F1' 
+ //   log.debug result.value
+
+
+} else if (value && value[0] == "C") {
+    result.name = "cO2_F1";
+    result.value = value[1..-1];
+    result.unit = "PPM"
+ //   log.debug 'cO2_F1' 
+ //   log.debug result.value
+
+    } else {
+    result.name = null;
+    log.debug  result.value
+}
+
+    log.debug result.descriptionText
+    createEvent(name: result.name, value: result.value)
+
+}
+
+def refresh() {
+	log.debug "Executing 'refresh'"
+    zigbee.smartShield(text: "on").format()    
+	// TODO: handle 'refresh' command
+}
+def poll() {
+
+	log.debug "Executing 'poll'"
+    zigbee.smartShield(text: "poll").format()
+  // 'zigbee.smartShield(text: "e").format()'  
+    }
+    
+// def justTryIt = new Date (now())
+// log.debug "when I tried, I got this: $justTryIt"   
